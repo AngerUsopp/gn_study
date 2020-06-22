@@ -1,0 +1,17 @@
+//.gn
+crashpad_dependencies = "chromium"
+
+//BUILD.gn
+root_extra_deps = []
+
+//build/config/BUILDCONFIG.gn
+is_official_build = false
+is_desktop_linux = current_os == "linux"
+is_clang = current_os != "linux" ||
+             (current_cpu != "s390x" && current_cpu != "s390" &&
+              current_cpu != "ppc64" && current_cpu != "ppc" &&
+              current_cpu != "mips" && current_cpu != "mips64")
+custom_toolchain = ""
+host_toolchain = ""
+is_debug = !is_official_build
+is_component_build = is_debug && current_os != "ios"

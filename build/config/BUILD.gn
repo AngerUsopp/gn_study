@@ -63,67 +63,6 @@ declare_args() {
 # build flags.
 config("feature_flags") {
   defines = []
-  if (dcheck_always_on) {
-    defines += [ "DCHECK_ALWAYS_ON=1" ]
-    if (dcheck_is_configurable) {
-      defines += [ "DCHECK_IS_CONFIGURABLE" ]
-    }
-  }
-  if (use_udev) {
-    # TODO(brettw) should probably be "=1".
-    defines += [ "USE_UDEV" ]
-  }
-  if (use_aura) {
-    defines += [ "USE_AURA=1" ]
-  }
-  if (use_glib) {
-    defines += [ "USE_GLIB=1" ]
-  }
-  if (use_nss_certs) {
-    defines += [ "USE_NSS_CERTS=1" ]
-  }
-  if (use_ozone && !is_android) {
-    # Note that some Chrome OS builds unconditionally set |use_ozone| to true,
-    # but they also build some targets with the Android toolchain. This ensures
-    # that Android targets still build with USE_OZONE=0 in such cases.
-    #
-    # TODO(crbug.com/837032): Maybe this can be cleaned up if we can avoid
-    # setting use_ozone globally.
-    defines += [ "USE_OZONE=1" ]
-  }
-  if (use_x11) {
-    defines += [ "USE_X11=1" ]
-  }
-  if (is_asan || is_hwasan || is_lsan || is_tsan || is_msan) {
-    defines += [ "MEMORY_TOOL_REPLACES_ALLOCATOR" ]
-  }
-  if (is_asan) {
-    defines += [ "ADDRESS_SANITIZER" ]
-  }
-  if (is_lsan) {
-    defines += [ "LEAK_SANITIZER" ]
-  }
-  if (is_tsan) {
-    defines += [
-      "THREAD_SANITIZER",
-      "DYNAMIC_ANNOTATIONS_EXTERNAL_IMPL=1",
-    ]
-  }
-  if (is_msan) {
-    defines += [ "MEMORY_SANITIZER" ]
-  }
-  if (is_ubsan || is_ubsan_null || is_ubsan_vptr || is_ubsan_security) {
-    defines += [ "UNDEFINED_SANITIZER" ]
-  }
-  if (is_official_build) {
-    defines += [ "OFFICIAL_BUILD" ]
-  }
-
-  if (is_chrome_branded) {
-    # TODO(thakis): Remove this in favor of build/branding_buildflags.h.
-    defines += [ "GOOGLE_CHROME_BUILD" ]
-  }
-
   # ==============================================
   #   PLEASE DO NOT ADD MORE THINGS TO THIS LIST
   # ==============================================
@@ -136,47 +75,11 @@ config("feature_flags") {
 config("debug") {
   defines = [
     "_DEBUG",
-    "DYNAMIC_ANNOTATIONS_ENABLED=1",
   ]
-
-  if (is_nacl) {
-    defines += [ "DYNAMIC_ANNOTATIONS_PREFIX=NACL_" ]
-  }
-
-  if (is_win) {
-    if (!enable_iterator_debugging && !use_custom_libcxx) {
-      # Iterator debugging is enabled by default by the compiler on debug
-      # builds, and we have to tell it to turn it off.
-      defines += [ "_HAS_ITERATOR_DEBUGGING=0" ]
-    }
-  } else if (is_linux && current_cpu == "x64" && enable_iterator_debugging) {
-    # Enable libstdc++ debugging facilities to help catch problems early, see
-    # http://crbug.com/65151 .
-    # TODO(phajdan.jr): Should we enable this for all of POSIX?
-    defines += [ "_GLIBCXX_DEBUG=1" ]
-  }
 }
 
 config("release") {
   defines = [ "NDEBUG" ]
-
-  # Sanitizers.
-  if (is_tsan) {
-    defines += [ "DYNAMIC_ANNOTATIONS_ENABLED=1" ]
-  } else {
-    defines += [ "NVALGRIND" ]
-    if (!is_nacl) {
-      # NaCl always enables dynamic annotations. Currently this value is set to
-      # 1 for all .nexes.
-      defines += [ "DYNAMIC_ANNOTATIONS_ENABLED=0" ]
-    }
-  }
-
-  if (is_ios) {
-    # Disable NSAssert and GTMDevAssert (from Google Toolbox for Mac). This
-    # follows XCode's default behavior for Release builds.
-    defines += [ "NS_BLOCK_ASSERTIONS=1" ]
-  }
 }
 
 # Default libraries ------------------------------------------------------------
@@ -268,26 +171,6 @@ group("common_deps") {
   if (using_sanitizer) {
     public_deps += [ "//build/config/sanitizers:deps" ]
   }
-
-  if (use_custom_libcxx) {
-    public_deps += [ "//buildtools/third_party/libc++" ]
-  }
-
-  if (use_afl) {
-    public_deps += [ "//third_party/afl" ]
-  }
-
-  if (is_android && use_order_profiling) {
-    public_deps += [ "//base/android/orderfile:orderfile_instrumentation" ]
-  }
-
-  if (is_win && generate_order_files && !is_nacl) {
-    public_deps += [ "//tools/cygprofile_win" ]
-  }
-
-  if (is_fuchsia) {
-    public_deps += [ "//third_party/fuchsia-sdk:runtime_library" ]
-  }
 }
 
 # Only the executable template in BUILDCONFIG.gn should reference this.
@@ -295,9 +178,6 @@ group("executable_deps") {
   public_deps = [
     ":common_deps",
   ]
-  if (export_libcxxabi_from_executables) {
-    public_deps += [ "//buildtools/third_party/libc++abi" ]
-  }
 }
 
 # Only the loadable_module template in BUILDCONFIG.gn should reference this.
@@ -346,14 +226,6 @@ config("executable_config") {
     }
   }
 
-  # If we're using the prebuilt instrumented libraries with the sanitizers, we
-  # need to add ldflags to every binary to make sure they are picked up.
-  if (prebuilt_instrumented_libraries_available) {
-    configs += [ "//third_party/instrumented_libraries:prebuilt_ldflags" ]
-  }
-  if (use_locally_built_instrumented_libraries) {
-    configs += [ "//third_party/instrumented_libraries:locally_built_ldflags" ]
-  }
   configs += [ "//build/config/sanitizers:link_executable" ]
 }
 
@@ -375,14 +247,6 @@ config("shared_library_config") {
     configs += [ "//build/config/gcc:shared_library_config" ]
   }
 
-  # If we're using the prebuilt instrumented libraries with the sanitizers, we
-  # need to add ldflags to every binary to make sure they are picked up.
-  if (prebuilt_instrumented_libraries_available) {
-    configs += [ "//third_party/instrumented_libraries:prebuilt_ldflags" ]
-  }
-  if (use_locally_built_instrumented_libraries) {
-    configs += [ "//third_party/instrumented_libraries:locally_built_ldflags" ]
-  }
   configs += [ "//build/config/sanitizers:link_shared_library" ]
 }
 
