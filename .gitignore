@@ -1,0 +1,20 @@
+
+*.sdf
+*.opensdf
+*.suo
+*.user
+*.aps
+*.VC.db
+*.opendb
+*.obj
+*.tlog
+*.lastbuildstate
+*.pyc
+
+.vs/
+.idea/
+
+# Build results
+
+#**/[Dd]ebug/
+#**/[Rr]elease/
